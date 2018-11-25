@@ -2,7 +2,7 @@
 
 
 # Import statements go here
-from collections import Counter
+from collections import Counter, defaultdict
 from io import StringIO
 from nltk.corpus import stopwords
 import pandas as pd
@@ -13,7 +13,7 @@ import re
 #temp
 from collect_lyrics_data import proj_dir
 
-from nltk.collocations import BigramCollocationFinder
+from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
 
 
 # Import df for temporary use
@@ -52,13 +52,65 @@ bigrams_clean = BigramCollocationFinder.from_words(words_clean)
 # List bigrams by frequency without regarding association measures
 popular = list(bigrams_clean.ngram_fd.items())
 popular.sort(key=lambda item: item[-1], reverse=True)
-print(popular)
+# print(popular)
+
+df_bigrams_cl = (pd.DataFrame(list(bigrams_clean.ngram_fd.items()), columns=['bigram', 'frequency']).
+    sort_values(by='frequency', ascending=False))
+
+print(df_bigrams_cl.head())
 
 # List bigrams by frequency after applying a ranking measures
+assoc_measures = BigramAssocMeasures()
+
+# bigrams.apply_freq_filter(10)
+# bigrams_clean.apply_freq_filter(10)
+
+df_pmi = pd.DataFrame(
+    list(bigrams.score_ngrams(assoc_measures.pmi)),
+    columns=['bigram', 'PMI']
+).sort_values(by='PMI', ascending=False)
+
+df_pmi_cl = pd.DataFrame(
+    list(bigrams_clean.score_ngrams(assoc_measures.pmi)),
+    columns=['bigram', 'PMI']
+).sort_values(by='PMI', ascending=False)
+
+print(df_pmi.head(10))
+print(df_pmi_cl.head(10))
+
+df_t = pd.DataFrame(
+    list(bigrams.score_ngrams(assoc_measures.student_t)),
+    columns=['bigram', 't']
+).sort_values(by='t', ascending=False)
+
+df_t_cl = pd.DataFrame(
+    list(bigrams_clean.score_ngrams(assoc_measures.student_t)),
+    columns=['bigram', 't']
+).sort_values(by='t', ascending=False)
+
+print(df_t.head(10))
+print(df_t_cl.head(10))
+
 
 
 # List the most commonly associated words to the most popular words by raw frequency
+def word_links(freq_dict):
+    # Group bigrams by first word in bigram.
+    word_list = defaultdict(list)
+    for key, scores in freq_dict.ngram_fd.items():
+        word_list[key[0]].append((key[1], scores))
 
+    # Sort keyed bigrams by strongest association.
+    for key in word_list:
+        word_list[key].sort(key = lambda x: -x[1])
+
+    return word_list
+
+word_list = word_links(bigrams)
+word_list_cl = word_links(bigrams_clean)
+
+print('love', word_list['love'][:5])
+print('love', word_list_cl['love'][:5])
 
 # List the most commonly associated words to the most popular words by after applying a ranking filter
 
