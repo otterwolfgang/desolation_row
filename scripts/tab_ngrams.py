@@ -14,6 +14,7 @@ import re
 from collect_lyrics_data import proj_dir, lyr_path
 from read_data import read_data
 
+from nltk import pos_tag
 from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
 
 
@@ -41,8 +42,16 @@ for song in df['Lyrics']:
 for song in df['Lyrics']:
     words_clean.extend([w for w in re.findall(r'\w+\'*\w*', song.lower()) if w not in stop_words])
 
-# print(words)
-# print(words_clean)
+# Filter for bigrams to only show words with accepted POS tags
+def filter_bigrams(bigram):
+    start_tag = ('JJ', 'JJR', 'JJS', 'NN', 'NNS', 'NNP', 'NNPS')
+    follow_tag = ('NN', 'NNS', 'NNP', 'NNPS')
+    tags = pos_tag(bigram)
+    if tags[0][1] in start_tag and tags[1][1] in follow_tag:
+        return True
+    else:
+        return False
+
 
 # Find bigrams in the whole corpus of words and without stopwords
 bigrams = BigramCollocationFinder.from_words(words)
@@ -58,13 +67,17 @@ popular.sort(key=lambda item: item[-1], reverse=True)
 df_bigrams_cl = (pd.DataFrame(list(bigrams_clean.ngram_fd.items()), columns=['bigram', 'frequency']).
     sort_values(by='frequency', ascending=False))
 
-print(df_bigrams_cl.head())
+# Filter bigram DataFrame
+df_bigrams_cl_filtered = df_bigrams_cl[df_bigrams_cl['bigram'].map(lambda x: filter_bigrams(x))]
+
+print(df_bigrams_cl.head(10))
+print(df_bigrams_cl_filtered.head(10))
 
 # List bigrams by frequency after applying a ranking measures
 assoc_measures = BigramAssocMeasures()
 
-# bigrams.apply_freq_filter(10)
-# bigrams_clean.apply_freq_filter(10)
+bigrams.apply_freq_filter(5)
+bigrams_clean.apply_freq_filter(5)
 
 df_pmi = pd.DataFrame(
     list(bigrams.score_ngrams(assoc_measures.pmi)),
