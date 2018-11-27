@@ -30,103 +30,97 @@ except FileNotFoundError:
     df = pd.read_pickle(df_path)
 
 
-# Temporary space for creating bigram counters
-# print(df.head())
-stop_words = set(stopwords.words('english'))
+# Tokenize lyrics and return a list of tokens stripped of stopwords
+def tokenize(df, lang='english'):
+    # Import stop words from nltk corpus
+    stop_words = set(stopwords.words(lang))
 
-words = []
-words_clean = []
+    words = []
+    for song in df['Lyrics']:
+        words.extend([w for w in re.findall(r'\w+\'*\w*', song.lower()) if w not in stop_words])
 
-for song in df['Lyrics']:
-    words.extend([w for w in re.findall(r'\w+\'*\w*', song.lower())])
-for song in df['Lyrics']:
-    words_clean.extend([w for w in re.findall(r'\w+\'*\w*', song.lower()) if w not in stop_words])
+    return words
 
 # Filter for bigrams to only show words with accepted POS tags
 def filter_bigrams(bigram):
+    # Use adjectives and nouns for the first position
     start_tag = ('JJ', 'JJR', 'JJS', 'NN', 'NNS', 'NNP', 'NNPS')
+    # Use only nouns for the second position
     follow_tag = ('NN', 'NNS', 'NNP', 'NNPS')
+
     tags = pos_tag(bigram)
+
     if tags[0][1] in start_tag and tags[1][1] in follow_tag:
         return True
     else:
         return False
 
+def score_bigrams(bigrams, method):
+    # Apply association measures to rank bigrams based on the selected method
+    measures = BigramAssocMeasures()
 
-# Find bigrams in the whole corpus of words and without stopwords
-bigrams = BigramCollocationFinder.from_words(words)
-bigrams_clean = BigramCollocationFinder.from_words(words_clean)
+    if method == 'PMI':
+        scored = bigrams.score_ngrams(measures.pmi)
+    elif method == 't':
+        scored = bigrams.score_ngrams(measures.student_t)
+    else:
+        # List bigrams by frequency without regarding association measures
+        scored = bigrams.ngram_fd.items()
 
-# print(bigrams.ngram_fd.items())
+    return scored
 
-# List bigrams by frequency without regarding association measures
-popular = list(bigrams_clean.ngram_fd.items())
-popular.sort(key=lambda item: item[-1], reverse=True)
-# print(popular)
+# Create a DataFrame with the most frequent bigrams based on the selected method
+def find_bigrams(words, filter=1, method='frequency', pos_filter=False):
 
-df_bigrams_cl = (pd.DataFrame(list(bigrams_clean.ngram_fd.items()), columns=['bigram', 'frequency']).
-    sort_values(by='frequency', ascending=False))
+    # Create the frequency dictionary of bigrams for the whole list of tokens
+    bigrams = BigramCollocationFinder.from_words(words)
 
-# Filter bigram DataFrame
-df_bigrams_cl_filtered = df_bigrams_cl[df_bigrams_cl['bigram'].map(lambda x: filter_bigrams(x))]
+    # Apply a frequency filter to filter out bigrams with very low frequency
+    # that would distort the applied association methods
+    bigrams.apply_freq_filter(filter)
 
-print(df_bigrams_cl.head(10))
-print(df_bigrams_cl_filtered.head(10))
+    # Apply the selected bigram association scoring
+    scored = score_bigrams(bigrams, method)
 
-# List bigrams by frequency after applying a ranking measures
-assoc_measures = BigramAssocMeasures()
+    df = (pd.DataFrame(list(scored), columns=['bigram', method]).
+        sort_values(by=method, ascending=False))
 
-bigrams.apply_freq_filter(5)
-bigrams_clean.apply_freq_filter(5)
+    # Filter out bigrams that do not have the accepted combination of POS tags
+    if pos_filter:
+        df = df[df['bigram'].map(lambda x: filter_bigrams(x))]
 
-df_pmi = pd.DataFrame(
-    list(bigrams.score_ngrams(assoc_measures.pmi)),
-    columns=['bigram', 'PMI']
-).sort_values(by='PMI', ascending=False)
+    return df
 
-df_pmi_cl = pd.DataFrame(
-    list(bigrams_clean.score_ngrams(assoc_measures.pmi)),
-    columns=['bigram', 'PMI']
-).sort_values(by='PMI', ascending=False)
+# List the most commonly associated words to every token
+def word_links(words, filter=1, method='frequency'):
 
-print(df_pmi.head(10))
-print(df_pmi_cl.head(10))
+    # Create the frequency dictionary of bigrams for the whole list of tokens
+    bigrams = BigramCollocationFinder.from_words(words)
 
-df_t = pd.DataFrame(
-    list(bigrams.score_ngrams(assoc_measures.student_t)),
-    columns=['bigram', 't']
-).sort_values(by='t', ascending=False)
+    # Apply a frequency filter to filter out bigrams with very low frequency
+    # that would distort the applied association methods
+    bigrams.apply_freq_filter(filter)
 
-df_t_cl = pd.DataFrame(
-    list(bigrams_clean.score_ngrams(assoc_measures.student_t)),
-    columns=['bigram', 't']
-).sort_values(by='t', ascending=False)
+    # Apply the selected bigram association scoring
+    scored = score_bigrams(bigrams, method)
 
-print(df_t.head(10))
-print(df_t_cl.head(10))
-
-
-
-# List the most commonly associated words to the most popular words by raw frequency
-def word_links(freq_dict):
-    # Group bigrams by first word in bigram.
+    # Group bigrams by first word in bigram
     word_list = defaultdict(list)
-    for key, scores in freq_dict.ngram_fd.items():
+    for key, scores in scored:
         word_list[key[0]].append((key[1], scores))
 
-    # Sort keyed bigrams by strongest association.
+    # Sort keyed bigrams by strongest association
     for key in word_list:
-        word_list[key].sort(key = lambda x: -x[1])
+        word_list[key].sort(key=lambda x: -x[1])
 
     return word_list
 
-word_list = word_links(bigrams)
-word_list_cl = word_links(bigrams_clean)
+# temp functions for testing
+bigrams = find_bigrams(tokenize(df, 'english'), 10, 't', pos_filter=True)
+print(bigrams.head())
 
+word_list = word_links(tokenize(df), 5, method='PMI')
 print('love', word_list['love'][:5])
-print('love', word_list_cl['love'][:5])
-
-# List the most commonly associated words to the most popular words by after applying a ranking filter
 
 
 # Function to draw the whole tab

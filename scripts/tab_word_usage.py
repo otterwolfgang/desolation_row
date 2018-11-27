@@ -67,7 +67,7 @@ def tab_word_usage(df, plot_width, plot_height):
         return ColumnDataSource(df), ColumnDataSource(df_artists), avg
 
     # Count word frequency in all songs excluding stopwords
-    def word_frequency(df, lang):
+    def word_frequency(df, lang='english'):
         # Import stop words from nltk corpus
         stop_words = set(stopwords.words(lang))
 
@@ -88,7 +88,7 @@ def tab_word_usage(df, plot_width, plot_height):
         return sorted(list(years))
 
     # Count word frequency for individual years
-    def word_freq_years(df, lang, years):
+    def word_freq_years(df, lang='english', years):
         df = df.set_index(df['ReleaseDate']).sort_index()
 
         years_freq = []
@@ -109,7 +109,7 @@ def tab_word_usage(df, plot_width, plot_height):
         return df_freq
 
     # Find the top words and their frequency of occurence for a given time
-    def top_freq_years(df, lang, years, ref_year, number):
+    def top_freq_years(df, lang='english', years, ref_year, number):
         df_freq = word_freq_years(df, lang, years)
 
         # Find the most common words for the reference year or all years
