@@ -11,7 +11,8 @@ import re
 
 
 #temp
-from collect_lyrics_data import proj_dir
+from collect_lyrics_data import proj_dir, lyr_path
+from read_data import read_data
 
 from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
 

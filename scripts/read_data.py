@@ -28,7 +28,7 @@ def read_data(lyr_path, save_path):
     for song in lyr_path.glob('*.txt'):
         with open(song, 'r') as file:
             # Delete all markers for Verse or Chorus
-            input = re.sub(r'\s*\[\w*\s*\w*\]\s*', ' ', file.read())
+            input = re.sub(r'\[\w+\s*\w*\]', '', file.read())
             # Replace all newline characters with a single whitespace
             input = re.sub(r'\n+', ' ', input)
             # Replace all semicolons that are not in the head of the file with colons
@@ -38,7 +38,7 @@ def read_data(lyr_path, save_path):
 
             # Effective with new changes in collect lyrics
             # # Delete all markers for Verse or Chorus
-            # input = re.sub(r' *\[\w*\] *', '', file.read())
+            # input = re.sub(r'\[\w+\s*\w*\] *', '', file.read())
             # # Replace all newline characters with a single whitespace
             # input = re.sub(r'\n+', ' ', input)
             # # Replace all semicolons not followed by double pound signs with colons
