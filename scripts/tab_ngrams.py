@@ -17,6 +17,11 @@ from read_data import read_data
 from nltk import pos_tag
 from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
 
+from bokeh.io import output_file, show
+from bokeh.models import ColumnDataSource, LinearColorMapper
+from bokeh.palettes import RdPu9
+from bokeh.plotting import figure
+
 
 # Import df for temporary use
 # Define the path to look for the pickled object
@@ -115,13 +120,50 @@ def word_links(words, filter=1, method='frequency'):
 
     return word_list
 
-# temp functions for testing
-bigrams = find_bigrams(tokenize(df, 'english'), 10, 't', pos_filter=True)
-print(bigrams.head())
+# # temp functions for testing
+# bigrams = find_bigrams(tokenize(df, 'english'), 10, 't', pos_filter=True)
+# print(bigrams.head())
+#
+# word_list = word_links(tokenize(df), 5, method='PMI')
+# print('love', word_list['love'][:5])
 
-word_list = word_links(tokenize(df), 5, method='PMI')
-print('love', word_list['love'][:5])
+# Try out bokeh's text glyph for displaying information
+output_file('test.html')
 
+test = pd.DataFrame({
+    'word': ['hello', 'hello', 'love', 'love'],
+    'y': [1, 2, 1, 2],
+    'assoc': ['there', 'world', 'my', 'her'],
+    'rank': [7, 4, 5, 3]
+})
+print(test)
+
+x_range = ['hello', 'love']
+y_range = [2.5, 0.5]
+print(x_range)
+
+src = ColumnDataSource(test)
+
+# Initialize a color mapper
+mapper = LinearColorMapper(
+    palette=list(reversed(RdPu9)), # Palette with 9 colors
+    # palette=list(reversed(magma(n))), # Palette with n colors
+    low=src.data['rank'].min(), high=src.data['rank'].max()
+)
+
+p = figure(
+    title='test', plot_width=300, plot_height=300,
+    x_range=x_range, y_range=y_range,
+    x_axis_location='above'
+)
+
+p.text(
+    x='word', y='y', text='assoc', source=src,
+    text_color={'field': 'rank', 'transform': mapper},
+    text_align='center', text_baseline='middle'
+)
+
+show(p)
 
 # Function to draw the whole tab
 def tab_word_usage(df, plot_width, plot_height):

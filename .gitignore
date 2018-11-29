@@ -4,6 +4,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# html files
+*.html
+
 # Unit test / coverage reports
 .pytest_cache/
 
