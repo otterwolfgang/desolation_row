@@ -35,6 +35,79 @@ except FileNotFoundError:
     df = pd.read_pickle(df_path)
 
 
+# Copied functions from tab_word_usage (temporary)
+# Count word frequency in all songs excluding stopwords
+def word_frequency(df, lang='english'):
+    # Import stop words from nltk corpus
+    stop_words = set(stopwords.words(lang))
+
+    words_ctn = Counter()
+
+    for song in df['Lyrics']:
+        words_ctn.update([w for w in re.findall(r'\w+\'*\w*', song.lower()) if w not in stop_words])
+
+    # Return the counter with all words and their numbers of occurence
+    return words_ctn
+
+# Find all years in dataset and put into a set
+def all_years(df):
+    years = set()
+    for date in df['ReleaseDate']:
+        years.update(re.findall(r'[0-9]{4}', str(date)))
+
+    return sorted(list(years))
+
+# Count word frequency for individual years
+def word_freq_years(df, years, lang='english'):
+    df = df.set_index(df['ReleaseDate']).sort_index()
+
+    years_freq = []
+    years_total = []
+    for year in years:
+        # Append the counter with all words and their numbers of occurence
+        # for the specified year
+        years_freq.append(word_frequency(df[year], lang))
+        # Append the sum of all values in the counter giving the total
+        # number of words minus stop words for that year
+        years_total.append(sum(word_frequency(df[year], lang).values()))
+
+    df_freq = pd.DataFrame(
+        {'FreqCtn': years_freq, 'Total': years_total},
+        index=years
+    ).sort_index()
+
+    return df_freq
+
+# Find the top words and their frequency of occurence for a given time
+def top_freq_years(df, years, ref_year, number, lang='english'):
+    df_freq = word_freq_years(df, years, lang)
+
+    # Find the most common words for the reference year or all years
+    if ref_year == 'overall':
+        top_words = word_frequency(df, lang).most_common(number)
+    else:
+        top_words = df_freq.loc[ref_year, 'FreqCtn'].most_common(number)
+
+    words, count = zip(*top_words)
+
+    freq_dict = {}
+
+    for word in words:
+        word_counts = []
+        for year in df_freq.index.tolist():
+            word_counts.append((df_freq.loc[year, 'FreqCtn'][word] / df_freq.loc[year, 'Total']) * 100)
+        freq_dict.update({word: word_counts})
+
+    df = pd.DataFrame(freq_dict, index=df_freq.index)
+    df.columns.name = 'Word'
+    df.index.name = 'Year'
+
+    # Reshape to 1D array or frequency with a word and year for each row
+    df = pd.DataFrame(df.stack(), columns=['Frequency']).reset_index()
+
+    return ColumnDataSource(df), words
+
+
 # Tokenize lyrics and return a list of tokens stripped of stopwords
 def tokenize(df, lang='english'):
     # Import stop words from nltk corpus
@@ -120,12 +193,50 @@ def word_links(words, filter=1, method='frequency'):
 
     return word_list
 
+# Build a ColumnDataSource with the most frequent words and their links
+def freq_links(word_list, words, num_links=10):
+    terms = []
+    y_pos = []
+    links = []
+    ranks = []
+
+    for word in words:
+        terms.extend([word for i in range(num_links)])
+        y_pos.extend([i for i in range(num_links)])
+        temp_links = [link[0] for link in word_list[word][:num_links]]
+        temp_ranks = [link[1] for link in word_list[word][:num_links]]
+
+        if len(temp_links) < num_links:
+            temp_links.extend(['NaN'] * (num_links - len(temp_links)))
+            temp_ranks.extend(['NaN'] * (num_links - len(temp_ranks)))
+
+        links.extend(temp_links)
+        ranks.extend(temp_ranks)
+
+    # print(terms)
+    # print(links)
+    # print(len(terms))
+    # print(len(y_pos))
+    # print(len(links))
+    # print(len(ranks))
+
+    df = pd.DataFrame({
+        'Word': terms,
+        'y': y_pos,
+        'Link': links,
+        'Rank': ranks
+    })
+
+    return df
+
 # # temp functions for testing
 # bigrams = find_bigrams(tokenize(df, 'english'), 10, 't', pos_filter=True)
 # print(bigrams.head())
 #
 # word_list = word_links(tokenize(df), 5, method='PMI')
 # print('love', word_list['love'][:5])
+df_links = freq_links(word_links(tokenize(df), 5, method='PMI'), top_freq_years(df, all_years(df), 'overall', 10)[1], num_links=10)
+print(df_links.head(15))
 
 # Try out bokeh's text glyph for displaying information
 output_file('test.html')
@@ -140,7 +251,6 @@ print(test)
 
 x_range = ['hello', 'love']
 y_range = [2.5, 0.5]
-print(x_range)
 
 src = ColumnDataSource(test)
 
@@ -163,7 +273,7 @@ p.text(
     text_align='center', text_baseline='middle'
 )
 
-show(p)
+# show(p)
 
 # Function to draw the whole tab
 def tab_word_usage(df, plot_width, plot_height):
