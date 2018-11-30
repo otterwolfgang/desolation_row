@@ -19,7 +19,7 @@ from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
 
 from bokeh.io import output_file, show
 from bokeh.models import ColumnDataSource, LinearColorMapper
-from bokeh.palettes import RdPu9
+from bokeh.palettes import magma, RdPu9
 from bokeh.plotting import figure
 
 
@@ -208,7 +208,7 @@ def freq_links(word_list, words, num_links=10):
 
         if len(temp_links) < num_links:
             temp_links.extend(['NaN'] * (num_links - len(temp_links)))
-            temp_ranks.extend(['NaN'] * (num_links - len(temp_ranks)))
+            temp_ranks.extend([0] * (num_links - len(temp_ranks)))
 
         links.extend(temp_links)
         ranks.extend(temp_ranks)
@@ -217,7 +217,7 @@ def freq_links(word_list, words, num_links=10):
     # print(links)
     # print(len(terms))
     # print(len(y_pos))
-    # print(len(links))
+    print(len(links))
     # print(len(ranks))
 
     df = pd.DataFrame({
@@ -227,7 +227,9 @@ def freq_links(word_list, words, num_links=10):
         'Rank': ranks
     })
 
-    return df
+    print(df.head(15))
+
+    return ColumnDataSource(df)
 
 # # temp functions for testing
 # bigrams = find_bigrams(tokenize(df, 'english'), 10, 't', pos_filter=True)
@@ -235,45 +237,59 @@ def freq_links(word_list, words, num_links=10):
 #
 # word_list = word_links(tokenize(df), 5, method='PMI')
 # print('love', word_list['love'][:5])
-df_links = freq_links(word_links(tokenize(df), 5, method='PMI'), top_freq_years(df, all_years(df), 'overall', 10)[1], num_links=10)
-print(df_links.head(15))
+num_links = 10
+words = top_freq_years(df, all_years(df), 'overall', 10)[1]
+src = freq_links(
+    word_links(tokenize(df), 5, method='PMI'),
+    words,
+    num_links=num_links
+)
+
+
+# Functions for plotting the data
+
+# General style function for plots
+def style(plot):
+    # Apply background color
+    plot.background_fill_color = 'beige'
+    plot.background_fill_alpha = 0.3
+
+    return plot
 
 # Try out bokeh's text glyph for displaying information
 output_file('test.html')
 
-test = pd.DataFrame({
-    'word': ['hello', 'hello', 'love', 'love'],
-    'y': [1, 2, 1, 2],
-    'assoc': ['there', 'world', 'my', 'her'],
-    'rank': [7, 4, 5, 3]
-})
-print(test)
+x_range = words
+y_range = [num_links - 0.5, -0.5]
 
-x_range = ['hello', 'love']
-y_range = [2.5, 0.5]
-
-src = ColumnDataSource(test)
 
 # Initialize a color mapper
 mapper = LinearColorMapper(
     palette=list(reversed(RdPu9)), # Palette with 9 colors
     # palette=list(reversed(magma(n))), # Palette with n colors
-    low=src.data['rank'].min(), high=src.data['rank'].max()
+    low=src.data['Rank'].min(), high=src.data['Rank'].max()
 )
 
 p = figure(
-    title='test', plot_width=300, plot_height=300,
+    title='test', plot_width=900, plot_height=300,
     x_range=x_range, y_range=y_range,
     x_axis_location='above'
 )
 
 p.text(
-    x='word', y='y', text='assoc', source=src,
-    text_color={'field': 'rank', 'transform': mapper},
+    x='Word', y='y', text='Link', source=src,
+    text_color={'field': 'Rank', 'transform': mapper},
     text_align='center', text_baseline='middle'
 )
 
-# show(p)
+p.grid.grid_line_color = None
+p.xaxis.axis_line_color = None
+p.xaxis.major_tick_line_color = None
+p.xaxis.major_label_text_font_size = '8pt'
+p.yaxis.visible = False
+
+p = style(p)
+show(p)
 
 # Function to draw the whole tab
 def tab_word_usage(df, plot_width, plot_height):
