@@ -213,13 +213,6 @@ def freq_links(word_list, words, num_links=10):
         links.extend(temp_links)
         ranks.extend(temp_ranks)
 
-    # print(terms)
-    # print(links)
-    # print(len(terms))
-    # print(len(y_pos))
-    print(len(links))
-    # print(len(ranks))
-
     df = pd.DataFrame({
         'Word': terms,
         'y': y_pos,
@@ -227,9 +220,20 @@ def freq_links(word_list, words, num_links=10):
         'Rank': ranks
     })
 
-    print(df.head(15))
-
     return ColumnDataSource(df)
+
+# Find the frequency of occurence for a given word over all years
+def freq_over_years(df, word, years, lang='english'):
+    df_freq = word_freq_years(df, years, lang)
+
+    word_counts = []
+    for year in df_freq.index.tolist():
+        word_counts.append((df_freq.loc[year, 'FreqCtn'][word] / df_freq.loc[year, 'Total']) * 100)
+
+    df = pd.DataFrame({word: word_counts}, index=df_freq.index)
+    df.index.name = 'Year'
+
+    return df
 
 # # temp functions for testing
 # bigrams = find_bigrams(tokenize(df, 'english'), 10, 't', pos_filter=True)
@@ -237,6 +241,12 @@ def freq_links(word_list, words, num_links=10):
 #
 # word_list = word_links(tokenize(df), 5, method='PMI')
 # print('love', word_list['love'][:5])
+
+like = freq_over_years(df, 'like', all_years(df))
+print(like.head(10))
+god = freq_over_years(df, 'god', all_years(df))
+print(god.tail(15))
+
 num_links = 10
 words = top_freq_years(df, all_years(df), 'overall', 10)[1]
 src = freq_links(
@@ -279,17 +289,19 @@ p = figure(
 p.text(
     x='Word', y='y', text='Link', source=src,
     text_color={'field': 'Rank', 'transform': mapper},
+    text_font='futura', text_font_size='9pt',
     text_align='center', text_baseline='middle'
 )
 
 p.grid.grid_line_color = None
 p.xaxis.axis_line_color = None
 p.xaxis.major_tick_line_color = None
-p.xaxis.major_label_text_font_size = '8pt'
+p.xaxis.major_label_text_font_size = '9pt'
+p.xaxis.major_label_text_font_style = 'bold'
 p.yaxis.visible = False
 
 p = style(p)
-show(p)
+# show(p)
 
 # Function to draw the whole tab
 def tab_word_usage(df, plot_width, plot_height):
