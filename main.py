@@ -14,6 +14,7 @@ from bokeh.models.widgets import Tabs
 
 from scripts.tab_overview import tab_overview
 from scripts.tab_word_usage import tab_word_usage
+from scripts.tab_ngrams import tab_ngrams
 
 
 # Define the path to look for the pickled object
@@ -37,6 +38,7 @@ except FileNotFoundError:
 # Create each tab
 tab1 = tab_overview(df, 300, 300, proj_dir)
 tab2 = tab_word_usage(df, 300, 300)
+tab3 = tab_ngrams(df, 300, 300)
 
 # Run a Bokeh server
-curdoc().add_root(Tabs(tabs=[tab1, tab2]))
+curdoc().add_root(Tabs(tabs=[tab1, tab2, tab3]))

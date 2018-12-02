@@ -74,7 +74,9 @@ def tab_word_usage(df, plot_width, plot_height):
         words_ctn = Counter()
 
         for song in df['Lyrics']:
-            words_ctn.update([w for w in re.findall(r'\w+\'*\w*', song.lower()) if w not in stop_words])
+            words_ctn.update(
+                [w for w in re.findall(r'\w+\'*\w*', song.lower()) if w not in stop_words]
+            )
 
         # Return the counter with all words and their numbers of occurence
         return words_ctn
@@ -125,7 +127,9 @@ def tab_word_usage(df, plot_width, plot_height):
         for word in words:
             word_counts = []
             for year in df_freq.index.tolist():
-                word_counts.append((df_freq.loc[year, 'FreqCtn'][word] / df_freq.loc[year, 'Total']) * 100)
+                word_counts.append(
+                    (df_freq.loc[year, 'FreqCtn'][word] / df_freq.loc[year, 'Total']) * 100
+                )
             freq_dict.update({word: word_counts})
 
         df = pd.DataFrame(freq_dict, index=df_freq.index)
@@ -297,7 +301,9 @@ def tab_word_usage(df, plot_width, plot_height):
 
     # Function to update the word frequency over years plot
     def update_freq(attr, old, new):
-        new_src, new_words = top_freq_years(df, 'english', years, year_select.value, 10)
+        new_src, new_words = top_freq_years(
+            df, years, year_select.value, 10, 'english'
+        )
 
         src_freq.data.update(new_src.data)
         freq_table.y_range.factors = (list(reversed(new_words)))
@@ -329,11 +335,13 @@ def tab_word_usage(df, plot_width, plot_height):
     years_overall.insert(0, 'overall')
 
     # Create the select object and link the callback
-    year_select = Select(title='Most frequent words in', value='overall', options=years_overall)
+    year_select = Select(
+        title='Most frequent words in', value='overall', options=years_overall
+    )
     year_select.on_change('value', update_freq)
 
     # Data source for the plot
-    src_freq, words = top_freq_years(df, 'english', years, 'overall', 10)
+    src_freq, words = top_freq_years(df, years, 'overall', 10, 'english')
 
     freq_table = plot_top_freq_yrs(
         src_freq, words, years,
@@ -341,6 +349,7 @@ def tab_word_usage(df, plot_width, plot_height):
     )
     freq_table = style(freq_table)
 
+    # Create a tab layout
     l1 = layout([
         [
             column(total_words, widgetbox(year_select)),
