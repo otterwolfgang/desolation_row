@@ -12,9 +12,9 @@ import re
 from nltk import pos_tag
 from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
 
-from bokeh.layouts import layout
+from bokeh.layouts import layout, widgetbox
 from bokeh.models import ColumnDataSource, LinearColorMapper
-from bokeh.models.widgets import Panel, Tabs
+from bokeh.models.widgets import Panel, Tabs, TextInput
 from bokeh.palettes import magma, RdPu9
 from bokeh.plotting import figure
 
@@ -245,10 +245,10 @@ def tab_ngrams(df, plot_width, plot_height):
         for year in df_freq.index.tolist():
             word_counts.append((df_freq.loc[year, 'FreqCtn'][word] / df_freq.loc[year, 'Total']) * 100)
 
-        df = pd.DataFrame({word: word_counts}, index=df_freq.index)
+        df = pd.DataFrame({'Word': word_counts}, index=df_freq.index)
         df.index.name = 'Year'
 
-        return df
+        return ColumnDataSource(df)
 
 
     # Functions for plotting the data
@@ -302,7 +302,7 @@ def tab_ngrams(df, plot_width, plot_height):
 
     # Plot the frequency of occurence for certain words over the whole career
     def plot_word_trends(
-        w01, w02, w03, src01, src02, src03,
+        src01, src02, src03,
         plot_width=900, plot_height=300
     ):
         # Create the empty figure
@@ -314,19 +314,19 @@ def tab_ngrams(df, plot_width, plot_height):
 
         # Create the step glyph for the first word
         first = plot.step(
-            x='Year', y=w01, source=src01, mode='after',
+            x='Year', y='Word', source=src01, mode='after',
             color='salmon', alpha=0.7, line_width=2
         )
 
         # Create the step glyph for the second word
         second = plot.step(
-            x='Year', y=w02, source=src02, mode='after',
+            x='Year', y='Word', source=src02, mode='after',
             alpha=0.7, line_width=2
         )
 
         # Create the step glyph for the third word
         third = plot.step(
-            x='Year', y=w03, source=src03, mode='after',
+            x='Year', y='Word', source=src03, mode='after',
             color='turquoise', alpha=0.7, line_width=2
         )
 
@@ -341,17 +341,37 @@ def tab_ngrams(df, plot_width, plot_height):
     # print('love', word_list['love'][:5])
 
 
+    # Function to update the word trends to specific words
+    def update_trends(attr, old, new):
+        src01_new = freq_over_years(df, w01_input.value, all_years(df))
+        src02_new = freq_over_years(df, w02_input.value, all_years(df))
+        src03_new = freq_over_years(df, w03_input.value, all_years(df))
+
+        src01_trends.data.update(src01_new.data)
+        src02_trends.data.update(src02_new.data)
+        src03_trends.data.update(src03_new.data)
+
+
     # Create plot 1 for word trends
+    # Default words for initial display
     w01 = 'god'
-    w02 = 'jesus'
-    w03 = 'lord'
+    w02 = 'lord'
+    w03 = 'jesus'
+
+    # Create three text input widget for displaying three words individually
+    w01_input = TextInput(title='Word No. 1:', value=w01, placeholder='type here')
+    w01_input.on_change('value', update_trends)
+    w02_input = TextInput(title='Word No. 2:', value=w02, placeholder='type here')
+    w02_input.on_change('value', update_trends)
+    w03_input = TextInput(title='Word No. 3:', value=w03, placeholder='type here')
+    w03_input.on_change('value', update_trends)
 
     src01_trends = freq_over_years(df, w01, all_years(df))
     src02_trends = freq_over_years(df, w02, all_years(df))
     src03_trends = freq_over_years(df, w03, all_years(df))
 
     word_trends = plot_word_trends(
-        w01, w02, w03, src01_trends, src02_trends, src03_trends,
+        src01_trends, src02_trends, src03_trends,
         plot_width * 3, plot_height
     )
 
@@ -376,6 +396,7 @@ def tab_ngrams(df, plot_width, plot_height):
     # Create a tab layout
     l1 = layout([
         [
+            widgetbox(w01_input, w02_input, w03_input, width=200),
             word_trends
         ],
         [
