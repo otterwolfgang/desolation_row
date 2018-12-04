@@ -333,6 +333,28 @@ def tab_ngrams(df, plot_width, plot_height):
 
         return plot
 
+    # Adding a legend to the word_trends plot that can be updated
+    def add_legend(plot, label1, label2, label3):
+        li1 = LegendItem(label=label1, renderers=[plot.renderers[5]])
+        li2 = LegendItem(label=label2, renderers=[plot.renderers[6]])
+        li3 = LegendItem(label=label3, renderers=[plot.renderers[7]])
+        legend = Legend(items=[li1, li2, li3], location='top_right')
+        plot.add_layout(legend)
+
+    # Function to update the word trends to specific words
+    def update_trends(attr, old, new):
+        # Update all three ColumnDataSource in plot
+        for src, input in zip(
+            [src01_trends, src02_trends, src03_trends],
+            [w01_input, w02_input, w03_input]
+        ):
+            src_new = freq_over_years(df, input.value, all_years(df))
+            src.data.update(src_new.data)
+
+        # Destroy existing legend and then add new legend with new values
+        word_trends.legend.items = []
+        add_legend(word_trends, w01_input.value, w02_input.value, w03_input.value)
+
 
     # # temp functions for testing
     # bigrams = find_bigrams(tokenize(df, 'english'), 10, 't', pos_filter=True)
@@ -342,16 +364,11 @@ def tab_ngrams(df, plot_width, plot_height):
     # print('love', word_list['love'][:5])
 
 
-
-
-
     # Create plot 1 for word trends
     # Default words for initial display
     w01 = 'god'
     w02 = 'lord'
     w03 = 'jesus'
-
-
 
     src01_trends = freq_over_years(df, w01, all_years(df))
     src02_trends = freq_over_years(df, w02, all_years(df))
@@ -363,30 +380,7 @@ def tab_ngrams(df, plot_width, plot_height):
     )
 
     word_trends = style(word_trends)
-
-    def add_legend(plot, label):
-        li1 = LegendItem(label=label, renderers=[plot.renderers[5]])
-        # li2 = LegendItem(label='blue', renderers=[p1.renderers[1]])
-        # li3 = LegendItem(label='purple', renderers=[p1.renderers[2]])
-        legend1 = Legend(items=[li1], location='top_right')
-        plot.add_layout(legend1)
-
-    add_legend(word_trends, 'god')
-
-    # Function to update the word trends to specific words
-    def update_trends(attr, old, new):
-        src01_new = freq_over_years(df, w01_input.value, all_years(df))
-        src02_new = freq_over_years(df, w02_input.value, all_years(df))
-        src03_new = freq_over_years(df, w03_input.value, all_years(df))
-
-        src01_trends.data.update(src01_new.data)
-        src02_trends.data.update(src02_new.data)
-        src03_trends.data.update(src03_new.data)
-
-        add_legend(word_trends, w01_input.value)
-        add_legend(word_trends, w02_input.value)
-        add_legend(word_trends, w03_input.value)
-
+    add_legend(word_trends, w01, w02, w03)
 
     # Create three text input widget for displaying three words individually
     w01_input = TextInput(title='Word No. 1:', value=w01, placeholder='type here')
