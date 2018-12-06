@@ -13,7 +13,10 @@ from nltk import pos_tag
 from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
 
 from bokeh.layouts import layout, widgetbox
-from bokeh.models import ColumnDataSource, LinearColorMapper, Legend, LegendItem
+from bokeh.models import (
+    BasicTicker, ColorBar, ColumnDataSource, LinearColorMapper, Legend,
+    LegendItem
+)
 from bokeh.models.widgets import Panel, Tabs, TextInput
 from bokeh.palettes import magma, RdPu9
 from bokeh.plotting import figure
@@ -281,7 +284,8 @@ def tab_ngrams(df, plot_width, plot_height):
             title='Top words and their most closely associated terms',
             plot_width=int(plot_width), plot_height=int(plot_height),
             x_range=x_range, y_range=y_range,
-            x_axis_location='above'
+            x_axis_location='above',
+            tools='save, help'
         )
 
         plot.text(
@@ -291,12 +295,23 @@ def tab_ngrams(df, plot_width, plot_height):
             text_align='center', text_baseline='middle'
         )
 
+        # Add a color bar
+        color_bar = ColorBar(
+            color_mapper=mapper, major_label_text_font_size="6pt",
+            ticker=BasicTicker(desired_num_ticks=len(RdPu9)),
+            #formatter=PrintfTickFormatter(format="%d%%"),
+            label_standoff=6, border_line_color=None, location=(0, 0)
+        )
+
+        plot.add_layout(color_bar, 'right')
+
         plot.grid.grid_line_color = None
         plot.xaxis.axis_line_color = None
         plot.xaxis.major_tick_line_color = None
         plot.xaxis.major_label_text_font_size = '9pt'
         plot.xaxis.major_label_text_font_style = 'bold'
         plot.yaxis.visible = False
+        plot.toolbar.logo = None
 
         return plot
 
@@ -340,6 +355,7 @@ def tab_ngrams(df, plot_width, plot_height):
         li3 = LegendItem(label=label3, renderers=[plot.renderers[7]])
         legend = Legend(items=[li1, li2, li3], location='top_right')
         plot.add_layout(legend)
+        plot.legend.click_policy="hide"
 
     # Function to update the word trends to specific words
     def update_trends(attr, old, new):
@@ -376,7 +392,7 @@ def tab_ngrams(df, plot_width, plot_height):
 
     word_trends = plot_word_trends(
         src01_trends, src02_trends, src03_trends,
-        plot_width * 3, plot_height
+        plot_width * 2.3, plot_height
     )
 
     word_trends = style(word_trends)
@@ -409,7 +425,10 @@ def tab_ngrams(df, plot_width, plot_height):
     # Create a tab layout
     l1 = layout([
         [
-            widgetbox(w01_input, w02_input, w03_input, width=200),
+            widgetbox(
+                w01_input, w02_input, w03_input,
+                width=int(plot_width * 0.7)
+            ),
             word_trends
         ],
         [

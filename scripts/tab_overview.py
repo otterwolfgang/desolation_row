@@ -9,27 +9,14 @@ from pathlib import Path
 import re
 
 from bokeh.layouts import column, gridplot, layout, row
-from bokeh.models import BasicTicker, ColorBar, ColumnDataSource, HoverTool, Label, LabelSet, LinearColorMapper, NumeralTickFormatter
+from bokeh.models import (
+    BasicTicker, ColorBar, ColumnDataSource, HoverTool, Label, LabelSet,
+    LinearColorMapper, NumeralTickFormatter
+)
 from bokeh.models.widgets import Panel, Tabs
 from bokeh.palettes import RdPu9
 from bokeh.plotting import figure
 from bokeh.transform import jitter
-
-# #temp
-# from collect_lyrics_data import proj_dir
-# from bokeh.io import show
-#
-#
-# # Import df for temporary use
-# # Define the path to look for the pickled object
-# df_path = proj_dir.joinpath('data', 'df.pkl')
-#
-# # Check wether the pickled object exists
-# try:
-#     df = pd.read_pickle(df_path)
-# except FileNotFoundError:
-#     read_data(lyr_path, df_path)
-#     df = pd.read_pickle(df_path)
 
 
 # Functions for generation of data sources
@@ -72,16 +59,6 @@ def words_date(df, proj_dir):
 
     # Join DataFrame with song data with image data
     df_date = df.join(coordinates)
-
-    # # Initialize empty list for storing the words used in songs
-    # words_used = []
-    #
-    # # Loop through songs in DataFrame and append the words used
-    # for song in df_date['Lyrics']:
-    #     words_ctn = Counter(re.findall(r'\w+\'*\w*', song.lower()))
-    #     words_used.append(len(words_ctn))
-    #
-    # df_date['WordsUsed'] = words_used
 
     return df_date
 
@@ -257,7 +234,7 @@ def plot_words_date(src, plot_width, plot_height):
     plot = figure(
         plot_width=plot_width * 2,
         plot_height=plot_height * 2,
-        title='Did Bob Dylan become more talkative?'
+        title='Did Bob Dylan become more talkative? (or unique words per song)'
     )
 
     # Add a circle glyph for all songs
@@ -308,6 +285,7 @@ def update():
 
 # Function to draw the whole tab
 def tab_overview(df, plot_width, plot_height, proj_dir):
+    # Layout to use for more than one artist
     # l1 = layout([
     #     [
     #         plot_nums(num_data(df)[0], 'Number of artists', plot_width, plot_height),
@@ -318,7 +296,7 @@ def tab_overview(df, plot_width, plot_height, proj_dir):
     #         plot_hit_songs(hit_songs(df, 5), plot_width, plot_height)
     #     ]
     # ])
-    l2 = row(
+    l2 = row([
         column([
             plot_nums(num_data(df)[1], 'Number of songs', plot_width, plot_height),
             plot_hit_songs(hit_songs(df, 10), plot_width, plot_height)
@@ -326,7 +304,8 @@ def tab_overview(df, plot_width, plot_height, proj_dir):
         column([
             plot_words_date(words_date(df, proj_dir), plot_width, plot_height)
         ])
-    )
+    ])
+    # Layout with one combined toolbar
     # l3 = gridplot(
     #     [
     #         column([
@@ -344,13 +323,3 @@ def tab_overview(df, plot_width, plot_height, proj_dir):
     tab = Panel(child=l2, title='Overview')
 
     return tab
-
-# Temporary show command for testing
-# show(tab_overview(df, 300, 300))
-# l1 = layout([
-#     [
-#         #plot_words_date(words_date(df), 300, 300)
-#         plot_nums(num_data(df)[0], 'Number of artists', 300, 300)
-#     ]
-# ])
-# show(l1)
