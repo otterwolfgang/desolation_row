@@ -169,7 +169,7 @@ def tab_word_usage(df, plot_width, plot_height):
         plot.text(
             x='x', y='y', text='text', source=source,
             text_align='center', text_baseline='middle', text_color='salmon',
-            text_font='futura', text_font_size='72pt'
+            text_font='futura', text_font_size='64pt'
         )
 
         plot.xaxis.visible = False

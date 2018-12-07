@@ -21,23 +21,6 @@ from bokeh.models.widgets import Panel, Tabs, TextInput
 from bokeh.palettes import magma, RdPu9
 from bokeh.plotting import figure
 
-# #temp
-# from collect_lyrics_data import proj_dir, lyr_path
-# from read_data import read_data
-# from bokeh.io import output_file, show
-#
-#
-# # Import df for temporary use
-# # Define the path to look for the pickled object
-# df_path = proj_dir.joinpath('data', 'df.pkl')
-#
-# # Check wether the pickled object exists
-# try:
-#     df = pd.read_pickle(df_path)
-# except FileNotFoundError:
-#     read_data(lyr_path, df_path)
-#     df = pd.read_pickle(df_path)
-
 
 # Function to draw the whole tab
 def tab_ngrams(df, plot_width, plot_height):
@@ -392,7 +375,7 @@ def tab_ngrams(df, plot_width, plot_height):
 
     word_trends = plot_word_trends(
         src01_trends, src02_trends, src03_trends,
-        plot_width * 2.3, plot_height
+        plot_width * 2.485, plot_height
     )
 
     word_trends = style(word_trends)

@@ -48,6 +48,19 @@ def read_data(lyr_path, save_path):
 
         df = df.append(pd.read_csv(input, sep=';', header=None, names=columns))
 
+    # Find recording dates in titles and replace ReleaseDate
+    for i in range(len(df)):
+        m = re.search(
+            r'(?P<month>\d+)/(?P<day>\d+)/(?P<year>\d+)', df.iloc[i, 1]
+        )
+        if m:
+            new_date = '/'.join(
+                ['19' + m.group('year'),
+                m.group('month').zfill(2),
+                m.group('day').zfill(2)]
+            )
+            df.iloc[i, 3] = new_date
+
     # Drop all rows without a value for ReleaseDate
     df = df[df['ReleaseDate'] != 'None']
 

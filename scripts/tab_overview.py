@@ -10,8 +10,8 @@ import re
 
 from bokeh.layouts import column, gridplot, layout, row
 from bokeh.models import (
-    BasicTicker, ColorBar, ColumnDataSource, HoverTool, Label, LabelSet,
-    LinearColorMapper, NumeralTickFormatter
+    BasicTicker, ColorBar, ColumnDataSource, FuncTickFormatter, HoverTool,
+    Label, LabelSet, LinearColorMapper, NumeralTickFormatter
 )
 from bokeh.models.widgets import Panel, Tabs
 from bokeh.palettes import RdPu9
@@ -81,7 +81,7 @@ def plot_nums(src, title, plot_width, plot_height):
     plot.text(
         x='x', y='y', text='text', source=source,
         text_align='center', text_baseline='middle', text_color='salmon',
-        text_font='futura', text_font_size='72pt'
+        text_font='futura', text_font_size='64pt'
     )
 
     plot.xaxis.visible = False
@@ -179,6 +179,7 @@ def plot_hit_songs(src, plot_width, plot_height):
     vbar = plot.hbar(
         y='SongTitle', left=0, right='Pageviews', source=source,
         height=0.8, color={'field': 'WordsUsed', 'transform': mapper},
+        line_color='salmon', line_alpha=0.3,
         hover_color='firebrick'
     )
 
@@ -234,7 +235,7 @@ def plot_words_date(src, plot_width, plot_height):
     plot = figure(
         plot_width=plot_width * 2,
         plot_height=plot_height * 2,
-        title='Did Bob Dylan become more talkative? (or unique words per song)'
+        title='When did Bob Dylan talk the most? (or unique words per song over time)'
     )
 
     # Add a circle glyph for all songs
@@ -266,10 +267,20 @@ def plot_words_date(src, plot_width, plot_height):
 
     plot.add_layout(color_bar, 'right')
 
+    # Add a custom ticker
+    high = src['y'].max()
+    low = int(src['y'].min())
+
+    plot.yaxis.ticker = [low, high]
+    plot.yaxis.formatter = FuncTickFormatter(code="""
+        var mapping = {"-911": "1961", "-20": "2018"};
+        return mapping[tick];
+    """)
+
     # Style the visual properties of the plot
     plot.xaxis.visible = False
     plot.xgrid.visible = False
-    plot.yaxis.visible = False
+    # plot.yaxis.visible = False
     plot.ygrid.visible = False
     plot.xaxis.minor_tick_line_color = None
     plot.background_fill_color = 'beige'
