@@ -44,8 +44,8 @@ def hit_songs(df, number):
 
     return df_hits
 
-# Generate the source relationship between ReleaseDate and number of unique
-# words used
+# Generate the source for the relationship between ReleaseDate and number of
+# unique words used
 def words_date(df, proj_dir):
     # Sort DataFrame by ReleaseDate and reset index
     df = df.sort_values(by='ReleaseDate', ascending=False).reset_index(drop=True)
@@ -61,6 +61,14 @@ def words_date(df, proj_dir):
     df_date = df.join(coordinates)
 
     return df_date
+
+# Generate the source for the heatmap of the mean number of unique words used
+# for the selected epoch
+def words_epoch(df, offset):
+    df_epoch = df.resample(offset, label='left', on='ReleaseDate').mean()[['WordsUsed']]
+    df_epoch.drop(df_epoch.index[0], inplace=True)
+
+    return df_epoch
 
 # Functions for plotting the data
 
@@ -288,6 +296,48 @@ def plot_words_date(src, plot_width, plot_height):
 
     return plot
 
+# Plot a heatmap giving the mean number of unique words per song for the
+# specified epochs
+def plot_words_epoch(src, plot_width, plot_height):
+    source = ColumnDataSource(src)
+    t_delta = src.index[-1] - src.index[-2]
+
+    # Initialize a color mapper
+    mapper = LinearColorMapper(
+        palette=list(reversed(RdPu9)),
+        low=src['WordsUsed'].min(), high=src['WordsUsed'].max()
+    )
+
+    # Create the empty figure
+    plot = figure(
+        plot_width=plot_width, # * 0.3,
+        plot_height=plot_height * 2,
+        x_range=(0.5, 1.5),
+        y_range=(src.index.min() - (t_delta * 0.5), src.index.max() + (t_delta * 0.5)),
+        title='Find title', y_axis_type='datetime'
+    )
+
+    # Get the height of each rectangle by multiplying the seconds in the
+    # timedelta by 1000
+    height=t_delta.total_seconds() * 1000
+    # Add a rect glyph
+    plot.rect(
+        x=1, y='ReleaseDate', width=2, height=height * 0.99, source=source,
+        fill_color={'field': 'WordsUsed', 'transform': mapper},
+        line_color=None
+    )
+
+    # Style the visual properties of the plot
+    plot.grid.grid_line_color = None
+    plot.axis.axis_line_color = None
+    plot.xaxis.visible = False
+    #plot.xaxis.minor_tick_line_color = None
+    plot.toolbar.logo = None
+    plot.background_fill_color = 'beige'
+    plot.background_fill_alpha = 0.3
+
+    return plot
+
 
 # Function to update plots
 def update():
@@ -313,7 +363,8 @@ def tab_overview(df, plot_width, plot_height, proj_dir):
             plot_hit_songs(hit_songs(df, 10), plot_width, plot_height)
         ]),
         column([
-            plot_words_date(words_date(df, proj_dir), plot_width, plot_height)
+            #plot_words_date(words_date(df, proj_dir), plot_width, plot_height)
+            plot_words_epoch(words_epoch(df, '10A'), plot_width, plot_height)
         ])
     ])
     # Layout with one combined toolbar
