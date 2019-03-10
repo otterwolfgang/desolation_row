@@ -3,21 +3,33 @@
 
 # Import statements go here
 from collections import Counter
+from datetime import timedelta
 from io import StringIO
 import pandas as pd
 from pathlib import Path
 import re
 
-from bokeh.layouts import column, gridplot, layout, row
+from bokeh.layouts import column, gridplot, layout, row, widgetbox
 from bokeh.models import (
     BasicTicker, ColorBar, ColumnDataSource, FuncTickFormatter, HoverTool,
     Label, LabelSet, LinearColorMapper, NumeralTickFormatter
 )
-from bokeh.models.widgets import Panel, Tabs
+from bokeh.models.widgets import Panel, Select, Tabs
 from bokeh.palettes import RdPu9
 from bokeh.plotting import figure
 from bokeh.transform import jitter
 
+###
+# #temp
+# from collect_lyrics_data import proj_dir
+#
+# # Import df for temporary use
+# # Define the path to look for the pickled object
+# df_path = proj_dir.joinpath('data', 'df.pkl')
+#
+# # Check wether the pickled object exists
+# df = pd.read_pickle(df_path)
+###
 
 # Functions for generation of data sources
 
@@ -65,10 +77,24 @@ def words_date(df, proj_dir):
 # Generate the source for the heatmap of the mean number of unique words used
 # for the selected epoch
 def words_epoch(df, offset):
-    df_epoch = df.resample(offset, label='left', on='ReleaseDate').mean()[['WordsUsed']]
+    # Instantiate a resample object based on the selected offset
+    resample = df.resample(offset, on='ReleaseDate')
+    # Create a new DataFrame with the mean number of unique words used
+    df_epoch = resample.mean()[['WordsUsed']]
+    # Create a column with the number of songs used for each epoch
+    df_epoch['NumSongs'] = resample.count()['SongTitle']
+    # Drop the first row
     df_epoch.drop(df_epoch.index[0], inplace=True)
+    # Rename the index
+    df_epoch.index.name = 'right'
+    # Create a column for the left end of the offset
+    df_epoch['left'] = resample.count().index[:-1]
+    # Move the left end of the offset by one day to have it start with the new year
+    df_epoch['left'] = df_epoch['left'] + timedelta(days=1)
+    # Create a new column giving the time delta between left and right end of the offset
+    df_epoch['height'] = df_epoch.index - df_epoch['left']
 
-    return df_epoch
+    return ColumnDataSource(df_epoch)
 
 # Functions for plotting the data
 
@@ -154,17 +180,11 @@ def plot_song_per_artist(src, avg, plot_width, plot_height):
     return plot
 
 # Plot the songs with the most pageviews
-def plot_hit_songs(src, plot_width, plot_height):
+def plot_hit_songs(src, mapper, plot_width, plot_height):
     source = ColumnDataSource(src)
 
     # Get labels for the categorical x-axis
     songs = source.data['SongTitle']
-
-    # Initialize a color mapper
-    mapper = LinearColorMapper(
-        palette=list(reversed(RdPu9)),
-        low=src['WordsUsed'].min(), high=src['WordsUsed'].max()
-    )
 
     # Create the empty figure with a categorical x-axis
     plot = figure(
@@ -218,6 +238,7 @@ def plot_hit_songs(src, plot_width, plot_height):
     # plot.yaxis.axis_label = 'Views on Genius'
     # plot.yaxis[0].formatter = NumeralTickFormatter(format='0.0a')
     plot.ygrid.visible = False
+    plot.yaxis.axis_line_color = None
     plot.yaxis.major_label_text_font_size = '0pt'
     # plot.yaxis.major_tick_line_color = None
     plot.xaxis.axis_label = 'Views on Genius'
@@ -230,14 +251,8 @@ def plot_hit_songs(src, plot_width, plot_height):
 
 # Plot the songs according to ReleaseDate in form of the image of Bob Dylan
 # The newer the song, the higher on the y-axis; color gives number of unique words
-def plot_words_date(src, plot_width, plot_height):
+def plot_words_date(src, mapper, plot_width, plot_height):
     source = ColumnDataSource(src)
-
-    # Initialize a color mapper
-    mapper = LinearColorMapper(
-        palette=list(reversed(RdPu9)),
-        low=src['WordsUsed'].min(), high=src['WordsUsed'].max()
-    )
 
     # Create the empty figure
     plot = figure(
@@ -273,7 +288,7 @@ def plot_words_date(src, plot_width, plot_height):
         label_standoff=6, border_line_color=None, location=(0, 0)
     )
 
-    plot.add_layout(color_bar, 'right')
+    plot.add_layout(color_bar, 'left')
 
     # Add a custom ticker
     high = src['y'].max()
@@ -286,11 +301,10 @@ def plot_words_date(src, plot_width, plot_height):
     """)
 
     # Style the visual properties of the plot
+    plot.grid.grid_line_color = None
+    plot.axis.axis_line_color = None
     plot.xaxis.visible = False
-    plot.xgrid.visible = False
-    # plot.yaxis.visible = False
-    plot.ygrid.visible = False
-    plot.xaxis.minor_tick_line_color = None
+    plot.toolbar_location = None
     plot.background_fill_color = 'beige'
     plot.background_fill_alpha = 0.3
 
@@ -298,55 +312,77 @@ def plot_words_date(src, plot_width, plot_height):
 
 # Plot a heatmap giving the mean number of unique words per song for the
 # specified epochs
-def plot_words_epoch(src, plot_width, plot_height):
-    source = ColumnDataSource(src)
-    t_delta = src.index[-1] - src.index[-2]
-
-    # Initialize a color mapper
-    mapper = LinearColorMapper(
-        palette=list(reversed(RdPu9)),
-        low=src['WordsUsed'].min(), high=src['WordsUsed'].max()
-    )
-
+def plot_words_epoch(src, mapper, plot_width, plot_height):
     # Create the empty figure
     plot = figure(
-        plot_width=plot_width, # * 0.3,
-        plot_height=plot_height * 2,
-        x_range=(0.5, 1.5),
-        y_range=(src.index.min() - (t_delta * 0.5), src.index.max() + (t_delta * 0.5)),
-        title='Find title', y_axis_type='datetime'
+        plot_width=int(plot_width * 0.35),
+        plot_height=int(plot_height * 1.82),
+        x_range=(-1, 1),
+        y_range=(src.data['left'].min(), src.data['right'].max()),
+        title='Average',
+        y_axis_type='datetime',
+        tools=''
     )
 
-    # Get the height of each rectangle by multiplying the seconds in the
-    # timedelta by 1000
-    height=t_delta.total_seconds() * 1000
-    # Add a rect glyph
-    plot.rect(
-        x=1, y='ReleaseDate', width=2, height=height * 0.99, source=source,
+    # Add a quad glyph
+    plot.quad(
+        left=-2, right=2, bottom='left', top='right', source=src,
         fill_color={'field': 'WordsUsed', 'transform': mapper},
-        line_color=None
+        line_color='beige', line_alpha=0.3, line_width=0.5
     )
+
+    # Add a hover tool
+    hover = HoverTool(
+        tooltips=[
+            ('Timespan', '@left{%Y} - @right{%Y}'),
+            ('Number of songs', '@NumSongs'),
+            ('Mean unique words', '@WordsUsed{0.0}')
+        ],
+        formatters={'left': 'datetime', 'right': 'datetime'}
+    )
+
+    plot.add_tools(hover)
 
     # Style the visual properties of the plot
     plot.grid.grid_line_color = None
     plot.axis.axis_line_color = None
     plot.xaxis.visible = False
-    #plot.xaxis.minor_tick_line_color = None
-    plot.toolbar.logo = None
+    plot.toolbar_location = None
+    # plot.toolbar.logo = None
     plot.background_fill_color = 'beige'
     plot.background_fill_alpha = 0.3
 
     return plot
 
 
-# Function to update plots
-def update():
-    pass
-
-
 # Function to draw the whole tab
 def tab_overview(df, plot_width, plot_height, proj_dir):
-    # Layout to use for more than one artist
+    # Function to update the epochs plot
+    def update_epoch(attr, old, new):
+        offset_dict = {'3 years': '3A', '5 years': '5A', '10 years': '10A'}
+        new_src = words_epoch(df, offset_dict[epoch_select.value])
+
+        src_epoch.data.update(new_src.data)
+
+    # Add a Select widget for selecting the displayed epoch
+    # Create the select object and link the callback
+    epoch_select = Select(
+        # title='Epoch',
+        value='10 years', options=['3 years', '5 years', '10 years']
+    )
+    epoch_select.on_change('value', update_epoch)
+
+    # Initialize a color mapper to use in all plots
+    mapper = LinearColorMapper(
+        palette=list(reversed(RdPu9)),
+        low=df['WordsUsed'].min(), high=df['WordsUsed'].max()
+    )
+
+    # Create the source for the epochs plot
+    src_epoch = words_epoch(df, '10A')
+
+    # Create the whole tab
+    # # Layout to use for more than one artist
     # l1 = layout([
     #     [
     #         plot_nums(num_data(df)[0], 'Number of artists', plot_width, plot_height),
@@ -360,14 +396,17 @@ def tab_overview(df, plot_width, plot_height, proj_dir):
     l2 = row([
         column([
             plot_nums(num_data(df)[1], 'Number of songs', plot_width, plot_height),
-            plot_hit_songs(hit_songs(df, 10), plot_width, plot_height)
+            plot_hit_songs(hit_songs(df, 10), mapper, plot_width, plot_height)
         ]),
         column([
-            #plot_words_date(words_date(df, proj_dir), plot_width, plot_height)
-            plot_words_epoch(words_epoch(df, '10A'), plot_width, plot_height)
+            plot_words_date(words_date(df, proj_dir), mapper, plot_width, plot_height)
+        ]),
+        column([
+            plot_words_epoch(src_epoch, mapper, plot_width, plot_height),
+            widgetbox(epoch_select, width=120)
         ])
     ])
-    # Layout with one combined toolbar
+    # # Layout with one combined toolbar
     # l3 = gridplot(
     #     [
     #         column([
@@ -385,3 +424,9 @@ def tab_overview(df, plot_width, plot_height, proj_dir):
     tab = Panel(child=l2, title='Overview')
 
     return tab
+
+# df_epoch = words_epoch(df, '10A')
+# print(df[['ReleaseDate']].sort_values(by='ReleaseDate'))
+# print(df_epoch.head(10))
+
+#colormapper with absolute values for songs (min max on songs)
